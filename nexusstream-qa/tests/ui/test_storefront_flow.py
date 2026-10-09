@@ -18,7 +18,6 @@ def test_storefront_e2e_from_home_to_checkout(page, base_url):
     checkout_page = CheckoutPage(page, base_url)
 
     home_page.open_home()
-    # HomePage.open_login now waits for the hero button to be visible
     home_page.open_login()
 
     email = f"ui.{__import__('uuid').uuid4().hex[:8]}@example.com"
