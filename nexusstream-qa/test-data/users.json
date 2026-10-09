@@ -1,0 +1,17 @@
+{
+  "valid_user": {
+    "name": "QA User",
+    "email": "qa.user@example.com",
+    "password": "Password123!"
+  },
+  "invalid_email_user": {
+    "name": "Bad Email",
+    "email": "invalid-email",
+    "password": "Password123!"
+  },
+  "short_password_user": {
+    "name": "Short Password",
+    "email": "short.password@example.com",
+    "password": "123"
+  }
+}

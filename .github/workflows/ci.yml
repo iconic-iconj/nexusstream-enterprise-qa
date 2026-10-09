@@ -1,0 +1,112 @@
+name: NexusStream QA CI
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  smoke:
+    name: Smoke tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nexusstream-qa
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Install Playwright browser
+        run: uv run python -m playwright install --with-deps chromium
+
+      - name: Start app
+        working-directory: .
+        run: |
+          cd nexusstream-app
+          npm install
+          npm run build
+          nohup npm run dev >/tmp/nexusstream-app.log 2>&1 &
+          sleep 15
+
+      - name: Run smoke suite
+        run: |
+          mkdir -p reports
+          uv run pytest tests/api -q --maxfail=1 --junitxml=reports/smoke-api-results.xml
+
+      - name: Upload smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-results
+          path: |
+            nexusstream-qa/reports/*.xml
+            nexusstream-qa/reports/*.html
+            /tmp/nexusstream-app.log
+
+  qa:
+    name: Full QA suite
+    needs: smoke
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nexusstream-qa
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Install Playwright browser
+        run: uv run python -m playwright install --with-deps chromium
+
+      - name: Start app
+        working-directory: .
+        run: |
+          cd nexusstream-app
+          npm install
+          npm run build
+          nohup npm run dev >/tmp/nexusstream-app.log 2>&1 &
+          sleep 15
+
+      - name: Run API suite
+        run: |
+          mkdir -p reports
+          uv run pytest tests/api -q --junitxml=reports/api-results.xml --html=reports/api-report.html --self-contained-html
+
+      - name: Run UI suite
+        run: |
+          mkdir -p reports
+          uv run pytest tests/ui -q --junitxml=reports/ui-results.xml --html=reports/ui-report.html --self-contained-html
+
+      - name: Upload QA artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-results
+          path: |
+            nexusstream-qa/reports/*.xml
+            nexusstream-qa/reports/*.html
+            /tmp/nexusstream-app.log

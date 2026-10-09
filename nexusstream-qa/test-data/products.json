@@ -1,0 +1,25 @@
+{
+  "valid_product": {
+    "name": "Automation Test Product",
+    "description": "Product used for API automation checks",
+    "price": 99.99,
+    "category": "Digital",
+    "stock": 10,
+    "image_url": "https://example.com/product.jpg"
+  },
+  "valid_order_item": {
+    "id": 3,
+    "quantity": 1,
+    "price": 49.99
+  },
+  "invalid_stock_order_item": {
+    "id": 1,
+    "quantity": 999,
+    "price": 2499.99
+  },
+  "invalid_product_id": {
+    "id": 999999,
+    "quantity": 1,
+    "price": 1.0
+  }
+}
