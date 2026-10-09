@@ -16,6 +16,7 @@ def test_storefront_checkout_persists_order_in_database(page, base_url):
     email = f"e2e.{uuid.uuid4().hex[:8]}@example.com"
 
     home_page.open_home()
+    # HomePage handles waiting for UI readiness
     home_page.open_login()
     auth_page.register("E2E Shopper", email, "Password123!")
     auth_page.login(email, "Password123!")

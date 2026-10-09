@@ -39,7 +39,16 @@ jobs:
           npm install
           npm run build
           nohup npm run dev >/tmp/nexusstream-app.log 2>&1 &
-          sleep 15
+          # give the app more time to start and wait for a healthy response
+          sleep 30
+          for i in {1..30}; do
+            if curl -sSf http://localhost:3000/api/health >/dev/null 2>&1; then
+              echo "App healthy"
+              break
+            fi
+            echo "Waiting for app... ($i)"
+            sleep 1
+          done
 
       - name: Run smoke suite
         run: |
@@ -89,7 +98,16 @@ jobs:
           npm install
           npm run build
           nohup npm run dev >/tmp/nexusstream-app.log 2>&1 &
-          sleep 15
+          # give the app more time to start and wait for a healthy response
+          sleep 30
+          for i in {1..30}; do
+            if curl -sSf http://localhost:3000/api/health >/dev/null 2>&1; then
+              echo "App healthy"
+              break
+            fi
+            echo "Waiting for app... ($i)"
+            sleep 1
+          done
 
       - name: Run API suite
         run: |
