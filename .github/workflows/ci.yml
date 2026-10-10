@@ -5,126 +5,200 @@ on:
     branches: [main, master]
   push:
     branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexusstream-qa-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   smoke:
-    name: Smoke tests
+    name: API Smoke Tests
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: nexusstream-qa
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install uv
-        run: pip install uv
+        uses: astral-sh/setup-uv@v5
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: uv sync --all-extras
 
-      - name: Install Playwright browser
+      - name: Install Playwright Chromium
         run: uv run python -m playwright install --with-deps chromium
 
-      - name: Start app
-        working-directory: .
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: nexusstream-app/package-lock.json
+
+      - name: Install application dependencies
+        working-directory: nexusstream-app
+        run: npm ci
+
+      - name: Build application
+        working-directory: nexusstream-app
+        run: npm run build
+
+      - name: Start application
+        working-directory: nexusstream-app
         run: |
-          cd nexusstream-app
-          npm install
-          npm run build
-          nohup npm run dev >/tmp/nexusstream-app.log 2>&1 &
-          # give the app more time to start and wait for a healthy response
-          sleep 30
-          for i in {1..30}; do
-            if curl -sSf http://localhost:3000/api/health >/dev/null 2>&1; then
-              echo "App healthy"
-              break
+          nohup npm run dev -- --host 0.0.0.0 > /tmp/nexusstream-app.log 2>&1 &
+          echo $! > /tmp/nexusstream-app.pid
+
+      - name: Wait for application health
+        working-directory: nexusstream-qa
+        run: |
+          for i in {1..60}; do
+            if curl --fail --silent http://localhost:3000/api/health > /dev/null; then
+              echo "Application is healthy."
+              exit 0
             fi
-            echo "Waiting for app... ($i)"
-            sleep 1
+
+            echo "Waiting for application... ($i/60)"
+            sleep 2
           done
 
-      - name: Run smoke suite
+          echo "Application failed to become healthy."
+          cat /tmp/nexusstream-app.log
+          exit 1
+
+      - name: Verify Playwright fixtures
+        run: |
+          uv run python -c "import pytest_playwright; print('pytest-playwright is installed')"
+          uv run pytest --fixtures tests/ui/test_auth_ui.py
+
+      - name: Run API smoke tests
         run: |
           mkdir -p reports
-          uv run pytest tests/api -p playwright -q --maxfail=1 --junitxml=reports/smoke-api-results.xml
+          uv run pytest tests/api -q --maxfail=1 \
+            --junitxml=reports/smoke-api-results.xml
 
-      - name: Upload smoke artifacts
+      - name: Upload smoke test artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: smoke-results
+          name: smoke-test-results
+          if-no-files-found: warn
           path: |
             nexusstream-qa/reports/*.xml
-            nexusstream-qa/reports/*.html
             /tmp/nexusstream-app.log
 
   qa:
-    name: Full QA suite
+    name: Full QA Suite
     needs: smoke
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: nexusstream-qa
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install uv
-        run: pip install uv
+        uses: astral-sh/setup-uv@v5
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: uv sync --all-extras
 
-      - name: Install Playwright browser
+      - name: Install Playwright Chromium
         run: uv run python -m playwright install --with-deps chromium
 
-      - name: Start app
-        working-directory: .
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: nexusstream-app/package-lock.json
+
+      - name: Install application dependencies
+        working-directory: nexusstream-app
+        run: npm ci
+
+      - name: Build application
+        working-directory: nexusstream-app
+        run: npm run build
+
+      - name: Start application
+        working-directory: nexusstream-app
         run: |
-          cd nexusstream-app
-          npm install
-          npm run build
-          nohup npm run dev >/tmp/nexusstream-app.log 2>&1 &
-          # give the app more time to start and wait for a healthy response
-          sleep 30
-          for i in {1..30}; do
-            if curl -sSf http://localhost:3000/api/health >/dev/null 2>&1; then
-              echo "App healthy"
-              break
+          nohup npm run dev -- --host 0.0.0.0 > /tmp/nexusstream-app.log 2>&1 &
+          echo $! > /tmp/nexusstream-app.pid
+
+      - name: Wait for application health
+        run: |
+          for i in {1..60}; do
+            if curl --fail --silent http://localhost:3000/api/health > /dev/null; then
+              echo "Application is healthy."
+              exit 0
             fi
-            echo "Waiting for app... ($i)"
-            sleep 1
+
+            echo "Waiting for application... ($i/60)"
+            sleep 2
           done
 
-      - name: Run API suite
+          echo "Application failed to become healthy."
+          cat /tmp/nexusstream-app.log
+          exit 1
+
+      - name: Verify Playwright fixtures
+        run: |
+          uv run python -c "import pytest_playwright; print('pytest-playwright is installed')"
+          uv run pytest --fixtures tests/ui/test_auth_ui.py
+
+      - name: Run API test suite
         run: |
           mkdir -p reports
-          uv run pytest tests/api -p playwright -q --junitxml=reports/api-results.xml --html=reports/api-report.html --self-contained-html
+          uv run pytest tests/api -v \
+            --junitxml=reports/api-results.xml \
+            --html=reports/api-report.html \
+            --self-contained-html
 
-      - name: Run UI suite
+      - name: Run UI test suite
         run: |
           mkdir -p reports
-          uv run pytest tests/ui -p playwright -q --junitxml=reports/ui-results.xml --html=reports/ui-report.html --self-contained-html
+          uv run pytest tests/ui -v \
+            --junitxml=reports/ui-results.xml \
+            --html=reports/ui-report.html \
+            --self-contained-html
 
-      - name: Upload QA artifacts
+      - name: Upload QA reports and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: qa-results
+          name: full-qa-results
+          if-no-files-found: warn
           path: |
             nexusstream-qa/reports/*.xml
             nexusstream-qa/reports/*.html
             /tmp/nexusstream-app.log
+
+      - name: Stop application
+        if: always()
+        run: |
+          if [ -f /tmp/nexusstream-app.pid ]; then
+            kill "$(cat /tmp/nexusstream-app.pid)" || true
+          fi
