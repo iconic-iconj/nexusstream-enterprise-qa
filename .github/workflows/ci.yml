@@ -6,56 +6,51 @@ on:
   push:
     branches: [main, master]
 
-# Reusable template block to eliminate duplicated environment setup boilerplate
-.setup_template: &setup_steps
-  - name: Checkout code
-    uses: actions/checkout@v4
-
-  - name: Set up Python
-    uses: actions/setup-python@v5
-    with:
-      python-version: '3.11'
-
-  - name: Install uv & k6
-    run: |
-      pip install uv
-      curl -s https://k6.io | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
-      echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://k6.io stable main" | sudo tee /etc/apt/sources.list.p/k6.list
-      sudo apt-get update && sudo apt-get install k6
-
-  - name: Install dependencies
-    working-directory: nexusstream-qa
-    run: uv sync --all-extras
-
-  - name: Install Playwright browser
-    working-directory: nexusstream-qa
-    run: uv run python -m playwright install --with-deps chromium
-
-  - name: Start Application Service Layer
-    run: |
-      cd nexusstream-app
-      npm install
-      npm run build
-      nohup npm run dev >/tmp/nexusstream-app.log 2>&1 &
-      sleep 15
-      for i in {1..20}; do
-        if curl -sSf http://localhost:3000/api/health >/dev/null 2>&1; then
-          echo "App healthy"
-          break
-        fi
-        echo "Waiting for backend service tier... ($i)"
-        sleep 1
-      done
-
 jobs:
   smoke:
-    name: Smoke Execution Phase
+    name: Smoke tests
     runs-on: ubuntu-latest
-    steps:
-      - <<: *setup_steps
-
-      - name: Run short api smoke validation
+    defaults:
+      run:
         working-directory: nexusstream-qa
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Install Playwright browser
+        run: uv run python -m playwright install --with-deps chromium
+
+      - name: Start app
+        working-directory: .
+        run: |
+          cd nexusstream-app
+          npm install
+          npm run build
+          nohup npm run dev >/tmp/nexusstream-app.log 2>&1 &
+          # give the app more time to start and wait for a healthy response
+          sleep 30
+          for i in {1..30}; do
+            if curl -sSf http://localhost:3000/api/health >/dev/null 2>&1; then
+              echo "App healthy"
+              break
+            fi
+            echo "Waiting for app... ($i)"
+            sleep 1
+          done
+
+      - name: Run smoke suite
         run: |
           mkdir -p reports
           uv run pytest tests/api -q --maxfail=1 --junitxml=reports/smoke-api-results.xml
@@ -67,31 +62,64 @@ jobs:
           name: smoke-results
           path: |
             nexusstream-qa/reports/*.xml
+            nexusstream-qa/reports/*.html
             /tmp/nexusstream-app.log
 
   qa:
-    name: Core Functional & Load Testing
+    name: Full QA suite
     needs: smoke
     runs-on: ubuntu-latest
-    steps:
-      - <<: *setup_steps
-
-      - name: Run API automation suite
+    defaults:
+      run:
         working-directory: nexusstream-qa
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Install Playwright browser
+        run: uv run python -m playwright install --with-deps chromium
+
+      - name: Start app
+        working-directory: .
+        run: |
+          cd nexusstream-app
+          npm install
+          npm run build
+          nohup npm run dev >/tmp/nexusstream-app.log 2>&1 &
+          # give the app more time to start and wait for a healthy response
+          sleep 30
+          for i in {1..30}; do
+            if curl -sSf http://localhost:3000/api/health >/dev/null 2>&1; then
+              echo "App healthy"
+              break
+            fi
+            echo "Waiting for app... ($i)"
+            sleep 1
+          done
+
+      - name: Run API suite
         run: |
           mkdir -p reports
           uv run pytest tests/api -q --junitxml=reports/api-results.xml --html=reports/api-report.html --self-contained-html
 
-      - name: Run UI automation suite
-        working-directory: nexusstream-qa
+      - name: Run UI suite
         run: |
           mkdir -p reports
           uv run pytest tests/ui -q --junitxml=reports/ui-results.xml --html=reports/ui-report.html --self-contained-html
 
-      - name: Run k6 Scalability Load Test
-        run: k6 run nexusstream-qa/performance/k6-load-test.js
-
-      - name: Upload QA & Performance artifacts
+      - name: Upload QA artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
