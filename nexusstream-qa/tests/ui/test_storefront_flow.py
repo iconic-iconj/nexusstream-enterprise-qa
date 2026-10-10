@@ -1,4 +1,4 @@
-# test_storefront_e2e.py
+
 import uuid
 from playwright.sync_api import expect
 
@@ -19,7 +19,6 @@ def test_storefront_e2e_from_home_to_checkout(pom, page, base_url):
     pom.store.open_cart()
     expect(page).to_have_url(f"{base_url}/checkout")
 
-  
     pom.checkout.fill_step_one()
     pom.checkout.fill_shipping_address("123 Market Street, Austin, TX")
     pom.checkout.fill_payment("UI Shopper", "4242424242424242", "12/30", "123")

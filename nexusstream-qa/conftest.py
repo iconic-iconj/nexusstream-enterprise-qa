@@ -4,9 +4,7 @@ import pytest
 from clients.api_client import APIClient
 import pages
 
-# ==============================================================================
-# 1. PLAYWRIGHT CONTEXT CONFIGURATION
-# ==============================================================================
+
 @pytest.fixture
 def browser_context_args(browser_context_args):
     """Overrides the default playwright context viewport settings."""
@@ -17,16 +15,12 @@ def base_url():
     """Returns the base application URL from global environment setup."""
     return os.getenv("BASE_URL", "http://localhost:3000")
 
-
-# ==============================================================================
-# 2. CORE API CLIENTS & HEADERS
-# ==============================================================================
 @pytest.fixture
 def api(base_url):
     """Provides a raw, unauthenticated base API client instance."""
     client = APIClient(base_url)
     yield client
-    client.close()  # Safely closes the underlying httpx client connection
+    client.close()  
 
 @pytest.fixture
 def get_auth_headers(api):
@@ -45,9 +39,6 @@ def admin_headers(get_auth_headers): return get_auth_headers("admin")
 def user_headers(get_auth_headers): return get_auth_headers("user")
 
 
-# ==============================================================================
-# 3. LEAN BOILERPLATE-REDUCING FACTORIES (UI & API)
-# ==============================================================================
 @pytest.fixture
 def pom(page, base_url):
     """Consolidates all Page Object Models into a single unified registry namespace."""
@@ -62,13 +53,13 @@ def pom(page, base_url):
 @pytest.fixture
 def user_api(api, user_headers):
     """Returns an API client pre-configured with standard User Bearer tokens."""
-    api.client.headers.update(user_headers)  # Accesses the internal httpx client headers
+    api.client.headers.update(user_headers)  
     yield api
-    api.client.headers.clear()  # Prevents token leakage to subsequent tests
+    api.client.headers.clear()  
 
 @pytest.fixture
 def admin_api(api, admin_headers):
     """Returns an API client pre-configured with Admin Bearer tokens."""
-    api.client.headers.update(admin_headers)  # Accesses the internal httpx client headers
+    api.client.headers.update(admin_headers) 
     yield api
-    api.client.headers.clear()  # Prevents token leakage to subsequent tests
+    api.client.headers.clear()  

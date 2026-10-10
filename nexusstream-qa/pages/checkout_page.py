@@ -5,7 +5,6 @@ from playwright.sync_api import expect
 from .base_page import BasePage
 
 class CheckoutPage(BasePage):
-
     def fill_step_one(self):
         self.get_by_test("checkout-step-1-next").click()
 
@@ -26,16 +25,11 @@ class CheckoutPage(BasePage):
     def latest_order_for_email(self, email: str):
         db_path = Path(__file__).resolve().parents[2] / "nexusstream-app" / "nexusstream.db"
         with sqlite3.connect(db_path) as conn:
-            row = conn.execute(
-                "SELECT o.id, o.user_id, o.total_price FROM orders o JOIN users u ON u.id = o.user_id WHERE u.email = ? ORDER BY o.id DESC LIMIT 1",
-                (email,)
-            ).fetchone()
-
+            row = conn.execute("SELECT o.id, o.user_id, o.total_price FROM orders o JOIN users u ON u.id = o.user_id WHERE u.email = ? ORDER BY o.id DESC LIMIT 1",(email,)).fetchone()
             if not row: return None
 
             item = conn.execute("SELECT product_id, quantity, price FROM order_items WHERE order_id = ?", (row[0],)).fetchone()
             total_price = row[2] if row[2] is not None else 0.0
             return {
                 "order_id": row[0], "user_id": row[1], "total_price": float(total_price),
-                "product_id": item[0] if item else None, "quantity": item[1] if item else None, "item_price": float(item[2]) if item and item[2] is not None else None
-            }
+                "product_id": item[0] if item else None, "quantity": item[1] if item else None, "item_price": float(item[2]) if item and item[2] is not None else None}

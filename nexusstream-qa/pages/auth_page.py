@@ -3,7 +3,6 @@ from playwright.sync_api import expect
 from .base_page import BasePage
 
 class AuthPage(BasePage):
-
     def register(self, name: str, email: str, password: str):
         self.get_by_test("auth-toggle").click()
         self.get_by_test("auth-name-input").fill(name)

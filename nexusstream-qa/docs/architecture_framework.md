@@ -1,264 +1,216 @@
-# NexusStream QA — Unified Automation Architecture
+# NexusStream QA — Automation Architecture
 
-This document describes the real architecture of the `nexusstream-qa` project itself: the testing framework, fixture design, page object model, validation patterns, and execution strategy used to validate the NexusStream application.
+## 1. Overview
 
-The focus here is the QA layer, not the application codebase. The QA project is designed to test the actual user flows, API behavior, and database state of the system under test.
+The `nexusstream-qa` project contains automated tests for validating the NexusStream application. It uses Python and Pytest for test execution, with Playwright for browser automation and HTTP-based tests for API validation.
 
----
+The goal is to check whether the application behaves as expected, identify regressions, and make failures easier to investigate.
 
-## 1. Project Goal and Scope
+The architecture separates test cases from reusable setup and page interactions so that tests remain readable and easier to maintain as the project grows.
 
-`nexusstream-qa` is a Python-based quality engineering project built around pytest and Playwright. It is organized to validate:
+## 2. Project Structure
 
-- authentication and authorization
-- product catalog behavior
-- cart and checkout flows
-- order creation and persistence
-- database integrity checks
-- admin access rules
-- policy endpoint validation
-- browser-based regression scenarios
-- basic load/performance checks
-
-The project is intentionally structured around real behaviors in the application, rather than abstract demo-only flows.
-
----
-
-## 2. Unified Architecture Overview
-
-The testing architecture is layered in a way that keeps responsibilities separated while preserving clear traceability between test logic and system behavior.
+The QA project is organized around the following areas:
 
 ```text
-[nexusstream-qa]
-    |
-    |-- conftest.py
-    |      └── shared pytest fixtures for base_url, page, API access, user/admin auth
-    |
-    |-- pages/
-    |      ├── base_page.py             -> shared page navigation + locator abstraction
-    |      ├── home_page.py             -> home/landing interactions
-    |      ├── auth_page.py            -> login/register flows
-    |      ├── store_page.py           -> product navigation and cart actions
-    |      └── checkout_page.py        -> checkout and verification steps
-    |
-    |-- schemas/
-    |      └── api_schemas.py          -> centralized API response validation rules
-    |
-    |-- tests/
-    |      ├── api/                    -> endpoint-level validation
-    |      ├── ui/                     -> browser interaction tests
-    |      ├── e2e/                    -> transaction and persistence checks across app layers
-    |      └── performance/            -> load and throughput validation (via k6)
-    |
-    |-- test-data/
-    |      └── product/user fixtures
-    |
-    |-- sql/
-    |      └── verification queries for DB checks
-    |
-    |-- reports/
-    |      └── pytest-generated HTML report
-    |
-    └-- pyproject.toml
-          └── pytest config and project dependencies
+nexusstream-qa/
+├── conftest.py
+├── pyproject.toml
+├── pages/
+│   ├── base_page.py
+│   ├── home_page.py
+│   ├── auth_page.py
+│   ├── store_page.py
+│   └── checkout_page.py
+├── clients/
+│   └── api_client.py
+├── schemas/
+│   └── api_schemas.py
+├── tests/
+│   ├── api/
+│   ├── ui/
+│   ├── e2e/
+│   └── performance/
+├── test_data/
+├── sql/
+└── reports/
 ```
 
-This is the unified architecture of the QA project: shared fixtures, POM pages, schema validation, layered test suites, and database verification.
+This is the intended logical layout. Individual paths should be kept in sync with the actual repository; a directory should only be documented as implemented if it exists and is used.
 
----
+## 3. Core Design
 
-## 3. Core Design Principles
+### 3.1 Shared fixtures
 
-### 3.1 Shared Fixture-Driven Test Setup
-The project centralizes test lifecycle setup in `conftest.py`.
+Pytest fixtures provide reusable test setup and dependencies.
 
-This helps avoid repeated initialization logic in each test and creates a consistent test environment.
+Depending on the test, these can include:
 
-Key fixtures include:
+- The application base URL.
+- An HTTP client for API requests.
+- A Playwright browser page.
+- Page objects for common user interactions.
+- Authentication headers for authorized requests.
+- Test data and database access where configured.
 
-- `base_url`
-- `api` for request-based checks
-- `page` for browser automation
-- `home_page`, `auth_page`, `store_page`, `checkout_page`
-- user/admin auth header fixtures for authenticated scenarios
+Centralizing shared setup reduces duplication and gives tests a consistent way to access the application.
 
-This ensures the same test strategy is reused across API and UI tests.
+### 3.2 Page Object Model
 
-### 3.2 Page Object Model for UI Stability
-The `pages/` folder contains page-specific abstractions instead of raw selectors inside test cases.
+The Page Object Model keeps browser interactions in dedicated Python classes rather than repeating selectors and interaction logic throughout the test suite.
 
-Examples:
+The main responsibilities are:
 
-- `HomePage` handles landing page behavior
-- `AuthPage` encapsulates register/login logic
-- `StorePage` handles search, product listing, and add-to-cart actions
-- `CheckoutPage` handles shipping, payment, and confirmation assertions
+| Component | Responsibility |
+|---|---|
+| `BasePage` | Shared navigation and locator helpers |
+| `HomePage` | Landing page and navigation interactions |
+| `AuthPage` | Registration and login |
+| `StorePage` | Product search and cart interactions |
+| `CheckoutPage` | Checkout steps and order confirmation |
 
-This makes UI tests easier to maintain and reduces duplicate selector logic across many files.
+This separation helps keep tests focused on the behavior being verified. When a locator or interaction changes, the corresponding page object can be updated without unnecessarily rewriting every test that uses it.
 
-### 3.3 Locator Unification for Real App Markup
-The project intentionally handles mixed DOM patterns by normalizing selectors in `BasePage`.
+### 3.3 Locator handling
+
+The application may use both `data-test` and `data-testid` attributes. If both conventions are supported by the test framework, a shared locator helper can handle them centrally.
+
+For example:
 
 ```python
-return self.page.locator('[data-testid="name"], [data-test="name"]')
+def test_attribute_locator(page, name: str):
+    return page.locator(
+        f'[data-testid="{name}"], [data-test="{name}"]'
+    )
 ```
 
-This is a practical pattern because the app uses both `data-testid` and `data-test` attributes. The QA layer compensates for inconsistent markup without scattering fragile selector logic throughout the tests.
+This example illustrates the approach; it should only be included as an implementation claim if the repository actually contains and uses an equivalent helper.
 
-### 3.4 Centralized API Contract Validation
-The `schemas/api_schemas.py` file provides reusable response validation functions instead of repeating inline structural assertions in many tests.
+For user-facing elements, Playwright's role-based locators, such as `get_by_role()` and `get_by_label()`, are preferable when they provide reliable and accessible selectors.
 
-This keeps the tests cleaner and makes API contract checks maintainable.
+### 3.4 API client and response validation
 
-Examples include:
+An API client can centralize request handling, base URL configuration, headers, and common response processing.
 
-- `is_success_response()`
-- `is_user_response()`
-- `is_product_list_response()`
+Reusable schema or validation helpers can then check response structures and required fields.
 
-This follows a contract-first validation approach where the response shape is checked centrally.
+Examples of useful validation functions include:
 
----
+- Success response validation.
+- User response validation.
+- Product list validation.
 
-## 4. Test Suite Structure
+These functions should reflect the application's actual API contract. Centralized helpers are useful when they reduce duplication and make failures easier to understand; they should not replace assertions about specific business rules.
 
-### 4.1 API Tests (`tests/api/`)
-These checks validate direct HTTP behavior against the application.
+## 4. Test Layers
 
-Typical validation areas:
+### 4.1 API tests
 
-- auth and registration flows
-- profile retrieval
-- products retrieval
-- admin authorization
-- order creation logic
-- business rule failures such as insufficient stock
-- mock payment behavior
-- policy endpoint checks
-- load/performance endpoint checks
+API tests exercise the backend directly over HTTP. They can validate status codes, response payloads, authentication requirements, and business rules.
 
-The API tests are designed to confirm status codes, response structure, and business outcomes.
+The project’s documented test areas include authentication, product retrieval, order creation, stock validation, and admin authorization.
 
-### 4.2 UI Tests (`tests/ui/`)
-These tests exercise browser behavior using Playwright and page objects.
+The exact coverage and current pass/fail status should be taken from the implemented tests and their latest execution results.
 
-Examples:
+### 4.2 UI tests
 
-- home page navigation
-- login/register steps
-- search and product discovery
-- add-to-cart actions
-- final checkout flow
+UI tests use Playwright to interact with the application through a browser.
 
-UI tests validate real user journeys, not isolated helper functions.
+Typical user journeys include:
 
-### 4.3 End-to-End Validation (`tests/e2e/`)
-The e2e layer tests cross-boundary behavior beyond the UI alone. It validates whether the frontend actions produce actual persisted backend state.
+- Registering and logging in.
+- Navigating the storefront.
+- Searching for products.
+- Adding products to the cart.
+- Completing checkout.
+- Verifying order confirmation.
 
-These tests check that after a user completes a flow:
+These tests help detect problems that may not be visible through API checks alone, including navigation issues, broken interactions, and incorrect user-facing behavior.
 
-- an order was created
-- order items were recorded
-- totals are populated
-- stock values change as expected
-- data reflects real DB state
+### 4.3 End-to-end and database validation
 
-This is an important part of the QA architecture because it enforces data integrity, not just UI success.
+Where implemented, end-to-end tests can verify that a user action produces the expected backend result.
 
-### 4.4 Performance Validation (`performance/`)
-The project includes a k6 load script to test throughput and system stability under simulated load.
+For example, a checkout test can submit an order through the UI and then verify that the order was persisted with the expected product, quantity, and total.
 
-This keeps performance testing separate from functional validation while still being part of the same QA project.
+Database assertions should use the configured database and a reliable way to identify the specific test transaction. A successful confirmation message alone does not prove that the correct records were persisted.
 
----
+### 4.4 Performance testing
 
-## 5. Unified Test Execution Model
+Performance checks are useful for evaluating response times, throughput, and error rates under simulated load.
 
-The framework executes in a practical and reusable lifecycle:
+If the repository contains a k6 script, it can be maintained separately from the functional test suite and executed as its own validation step.
+
+Performance testing should have explicit workload assumptions and thresholds. The existence of a script does not, by itself, mean performance testing runs automatically in CI.
+
+## 5. Test Execution Flow
+
+The general execution model is:
 
 ```text
-Test starts
-   ↓
-Fixture bootstraps environment and page/API context
-   ↓
-Page object or API helper performs action
-   ↓
-Assertions validate state, response, or database result
-   ↓
-Report is generated via pytest HTML output
+Test begins
+    |
+    v
+Pytest loads fixtures and configuration
+    |
+    v
+Test sends an API request or performs browser actions
+    |
+    v
+Application behavior is observed
+    |
+    v
+Assertions validate the expected result
+    |
+    v
+Test results and available reports are recorded
 ```
 
-This model is intentionally simple but strong:
+API and UI tests use different interaction methods, but both should produce clear assertions and actionable failure messages.
 
-- API tests validate contracts
-- UI tests validate user journeys
-- E2E tests validate persistence and business state
-- Performance tests evaluate system behavior under load
+Where database or performance checks are implemented, they follow their own setup and execution requirements.
 
----
+## 6. Configuration and Test Data
 
-## 6. Shared Project Components
+The project configuration belongs in `pyproject.toml`, together with the dependencies and Pytest settings managed by the project.
 
-### 6.1 `conftest.py`
-This is the heart of the QA framework.
+Environment-specific values, such as the application URL and database connection string, should be configurable rather than hard-coded throughout the test cases.
 
-It centralizes:
+Test data should be predictable and isolated where practical. For example, registration tests can generate unique email addresses to avoid conflicts with records left by earlier runs.
 
-- environment variables
-- base URL setup
-- browser launch lifecycle
-- per-test page context creation
-- reusable user/admin auth helpers
+If shared test data files or SQL verification queries are used, keep them separate from test logic and document how they are loaded and maintained.
 
-This is the main foundational architecture pattern of the project.
+## 7. Reporting and Continuous Integration
 
-### 6.2 `pages/base_page.py`
-This is the base abstraction used by all page objects.
+The GitHub Actions workflow defined in `.github/workflows/ci.yml` provides the execution environment for the configured automated checks.
 
-It provides common behaviors such as:
+The current workflow:
 
-- page opening
-- navigation waits
-- shared locator matching for `data-test` and `data-testid`
+1. Installs Python and Node.js dependencies.
+2. Builds and starts the application.
+3. Waits for the application health endpoint.
+4. Runs the API suite in the smoke job.
+5. Runs the API and UI suites in the dependent full QA job.
+6. Uploads available XML and HTML reports and application logs.
 
-This reduces duplication and ensures the framework remains resilient to simple frontend markup changes.
+The workflow also checks that the Playwright pytest plugin is installed and lists available fixtures before the main test execution.
 
-### 6.3 `schemas/api_schemas.py`
-This module enforces a common contract-layer approach.
+This makes the test process repeatable and helps preserve evidence when a run fails.
 
-Rather than each test manually checking payload structure, the schema helpers validate expected response shape in a consistent way.
+## 8. Maintainability Principles
 
-### 6.4 `test-data/` and `sql/`
-The project keeps real test inputs and verification queries separate from test logic.
+The project follows a few practical principles:
 
-This helps with traceability and makes it easier to validate actual persisted state.
+- **Keep tests focused:** Each test should have a clear purpose and expected outcome.
+- **Reuse setup carefully:** Use fixtures and helpers where they reduce duplication.
+- **Separate interaction from assertions:** Page objects handle browser interactions; tests verify business outcomes.
+- **Validate contracts and behavior:** Check response structure as well as status codes and business rules.
+- **Keep failures traceable:** Report the failing operation and the expected versus actual result.
+- **Avoid unnecessary abstraction:** Add new layers only when they make the suite easier to understand or maintain.
+- **Keep documentation accurate:** Update the documented architecture when files, fixtures, or test execution change.
 
----
+## 9. Summary
 
-## 7. Why This Architecture Works
+NexusStream QA is organized around Pytest, API testing, Playwright browser automation, reusable fixtures, and page objects.
 
-This QA project is effective because it balances structure and realism:
-
-- fixtures reduce repetitive setup
-- page objects keep browser automation readable
-- schemas centralize response validation
-- e2e tests verify actual state changes
-- the project is aligned to real business flows, not synthetic examples
-
-The architecture is intentionally simple, maintainable, and focused on test confidence.
-
----
-
-## 8. Practical Summary
-
-The `nexusstream-qa` project is a unified QA architecture built around:
-
-- pytest as the execution engine
-- Playwright for browser automation
-- page objects for stable UI interactions
-- shared fixtures for environment and auth state
-- schema-driven API validation
-- database checks for end-to-end integrity
-- a layered test suite covering API, UI, e2e, and performance
-
-This is the actual engineering structure of the QA repository and represents a strong, portfolio-ready test architecture.
+The aim is to make application checks repeatable, keep test logic maintainable, and provide useful evidence when a regression occurs. Additional layers, such as database verification and performance testing, should be documented as active capabilities only when their implementation and execution are confirmed.
