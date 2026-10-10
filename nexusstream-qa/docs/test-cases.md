@@ -1,62 +1,109 @@
-# NexusStream — Core Automation Test Matrix
+# NexusStream QA — Test Case Matrix
 
-This matrix provides a consolidated registry of all structural, business-rule, and integration-layer test specifications verified within the framework. It categorizes test coverage across API Core Contracts, UI User Journeys, and Direct Backend Data Tier Assertions.
+This document summarizes the real automated test coverage available in the `nexusstream-qa` project. It is based on the actual test files and validation patterns currently implemented in the repository.
 
----
-
-## 🔐 1. Identity & Access Management (Authentication / Authorization)
-
-| Test ID | Priority | Layer | Feature / Endpoint | Scenario Description | Expected Result |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **TC-SEC-001** | High | API | `POST /api/auth/register` | Register a new user utilizing unique, valid payload structures. | HTTP 200/201; User record initialized successfully. |
-| **TC-SEC-002** | High | API | `POST /api/auth/register` | Reject registration attempts utilizing an identical, pre-existing email. | HTTP 400 Conflict; Secondary account blocked. |
-| **TC-SEC-003** | High | API | `POST /api/auth/register` | Validate payload data format validation rules (malformed email / short password). | HTTP 400 Bad Request; Client input error returned. |
-| **TC-SEC-004** | High | API | `POST /api/auth/login` | Authenticate an existing user using correct profile credentials. | HTTP 200 OK; Secure JWT auth token generated. |
-| **TC-SEC-005** | High | API | `POST /api/auth/login` | Reject authorization requests providing invalid passwords or missing usernames. | HTTP 401 Unauthorized; Security access denied. |
-| **TC-SEC-006** | High | API | `GET /api/user` | Enforce route authentication restrictions for profile details on guest users. | HTTP 401/403 Security block enforced. |
-| **TC-SEC-007** | High | UI | `/login` -> `/shop` | Execute full UI registration, switch context, and follow-up with a login sequence. | Browser switches routes and successfully loads `/shop`. |
-| **TC-SEC-008** | High | UI | `/checkout` -> `/login` | Attempt to load protected paths directly via browser routing without active storage sessions. | System intercepts request and redirects browser to `/login`. |
+The purpose is to reflect practical QA coverage for the app, not generic template test cases.
 
 ---
 
-## 🛒 2. Catalog & System Configuration
+## 1. Authentication and User Access
 
-| Test ID | Priority | Layer | Feature / Endpoint | Scenario Description | Expected Result |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **TC-CAT-001** | Medium | API | `GET /api/products` | Query total item catalog collection and validate structural contract payload properties. | HTTP 200 OK; Dict returned with expected `data` array schema. |
-| **TC-CAT-002** | Medium | API | `GET /api/products?cat` | Query catalog applying explicit parameters (e.g. `category=Digital`). | Response payload isolates filtered category records exclusively. |
-| **TC-CAT-003** | Low | API | `GET /api/health` | Call infrastructure diagnostic verification check endpoint. | HTTP 200 OK; Operational success and timestamp payload. |
-| **TC-CAT-004** | Low | API | `GET /api/policy` | Query static metadata reference documents for platform usage patterns. | HTTP 200 OK; Valid operational system policy strings returned. |
+| Test ID | Priority | Layer | Scope | Scenario | Expected Result |
+|---|---:|---|---|---|---|
+| TC-AUTH-001 | High | API | `/api/user` | Unauthenticated user requests profile data | HTTP 401 |
+| TC-AUTH-002 | High | API | `/api/auth/register` | Register a valid new user | HTTP 200 and success response |
+| TC-AUTH-003 | High | API | `/api/auth/login` | Login with valid credentials | HTTP 200 and token returned |
+| TC-AUTH-004 | High | API | `/api/auth/login` | Login with invalid credentials | HTTP 401 / auth failure |
+| TC-AUTH-005 | High | UI | Home → Login flow | User registers and logs in from UI | Browser redirects to `/shop` |
 
----
-
-## 💳 3. Transaction Operations (Orders & Checkout)
-
-| Test ID | Priority | Layer | Feature / Endpoint | Scenario Description | Expected Result |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **TC-ORD-001** | Critical | API | `POST /api/orders` | Place a standard, well-formed item purchase request using a verified authorization token. | HTTP 200 OK; Tracking tracking payload generated with valid `orderId`. |
-| **TC-ORD-002** | Critical | API | `POST /api/orders` | Enforce stock limits by submitting a product request matching excessive item quantities (e.g. 999). | HTTP 409 Conflict; Overstock operation blocked by backend. |
-| **TC-ORD-003** | High | API | `POST /api/orders` | Intercept transaction operations completely if the authorization header is omitted. | HTTP 401/403 Security perimeter block enforced. |
-| **TC-ORD-004** | Critical | UI | End-to-End Flow | Execute complete frontend journey: Land on Home -> Login -> Search -> Add to Cart -> Checkout. | System confirms placement and renders `order-success` marker. |
-| **TC-ORD-005** | High | API | `POST /api/mock/payment` | Parametrize mock payment gateway conditions across multi-state parameters (`success`, `fail`, `timeout`). | Gateway codes match inputs correctly (`200`, `402`, `504`). |
+### Source coverage
+- `tests/api/test_auth.py`
+- `tests/ui/test_auth_ui.py`
 
 ---
 
-## 🛡️ 4. Role-Based Access Control (RBAC) & Audit Integrity
+## 2. Product and Catalog Validation
 
-| Test ID | Priority | Layer | Feature / Endpoint | Scenario Description | Expected Result |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **TC-OPS-001** | High | API | `GET /api/admin/logs` | Fetch configuration audit logs utilizing authenticated administrator credentials. | HTTP 200 OK; Administrative tracking record array is provided. |
-| **TC-OPS-002** | High | API | `GET /api/admin/logs` | Assert access boundary rules when non-admin / default users invoke data endpoints. | **[BUG RETRIEVED]** Expected HTTP 403 Forbidden; system currently logs a 200 (*Marked XFAIL*). |
-| **TC-OPS-003** | High | API | `GET /api/admin/logs` | Enforce perimeter security controls against completely unauthenticated guest queries. | HTTP 401 Unauthorized block enforced. |
+| Test ID | Priority | Layer | Scope | Scenario | Expected Result |
+|---|---:|---|---|---|---|
+| TC-PROD-001 | Medium | API | `/api/products` | Fetch product catalog | HTTP 200 and valid product list structure |
+| TC-PROD-002 | Medium | API | `/api/products` | Create product without auth | 401 or 403 |
+| TC-PROD-003 | Low | API | `/api/health` | Health endpoint is available | HTTP 200 |
+| TC-PROD-004 | Low | API | `/api/policy` | Policy endpoint returns data | HTTP 200 |
+
+### Source coverage
+- `tests/api/test_products.py`
+- `tests/api/test_health.py`
+- `tests/api/test_policy.py`
 
 ---
 
-## 🗄️ 5. Full-Stack Data Tier Persistence Assertions
+## 3. Orders and Checkout Business Rules
 
-| Test ID | Priority | Layer | Target Asset Table | Scenario Description | Expected Result |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **TC-DB-001** | High | Database | `users` | Perform query assertions on `users` table fields following a successful UI signup operation. | Database contains record matching identical signup metadata attributes. |
-| **TC-DB-002** | Critical | Database | `orders` / `order_items` | Verify record state synchronization across transactional line items following full checkout actions. | Multi-table structural values match checkout properties cleanly. |
-| **TC-DB-003** | Critical | Database | `products` | Capture item stock capacity records before and after order placement processes. | Inventory count reduces exactly by the purchased order quantity. |
-| **TC-DB-004** | High | Database | `audit_logs` | Query operational diagnostic trails instantly following a finalized e-commerce checkout. | Database logs contextual tracing transaction elements with a success level. |
+| Test ID | Priority | Layer | Scope | Scenario | Expected Result |
+|---|---:|---|---|---|---|
+| TC-ORDER-001 | Critical | API | `/api/orders` | Place order without auth | HTTP 401 |
+| TC-ORDER-002 | Critical | API | `/api/orders` | Place a valid order with valid auth | HTTP 200 and success payload |
+| TC-ORDER-003 | Critical | API | `/api/orders` | Attempt order with invalid stock quantity | HTTP 409 |
+| TC-ORDER-004 | Critical | UI | Storefront flow | Home → login → search → add item → checkout | Checkout completes successfully |
+
+### Source coverage
+- `tests/api/test_orders.py`
+- `tests/ui/test_storefront_flow.py`
+- `tests/e2e/test_storefront_to_db.py`
+
+---
+
+## 4. Admin and Authorization Rules
+
+| Test ID | Priority | Layer | Scope | Scenario | Expected Result |
+|---|---:|---|---|---|---|
+| TC-ADMIN-001 | High | API | `/api/admin/logs` | Unauthenticated access | HTTP 401 |
+| TC-ADMIN-002 | High | API | `/api/admin/logs` | Regular user access attempt | Expected 403, currently marked xfail |
+| TC-ADMIN-003 | High | API | `/api/admin/logs` | Admin access | HTTP 200 |
+
+### Source coverage
+- `tests/api/test_admin.py`
+
+---
+
+## 5. Database Verification Checks
+
+| Test ID | Priority | Layer | Scope | Scenario | Expected Result |
+|---|---:|---|---|---|---|
+| TC-DB-001 | High | Database | `users` | User creation persists correctly | User row exists after registration |
+| TC-DB-002 | Critical | Database | `orders` + `order_items` | Order creation persists records | Order and line items are stored |
+| TC-DB-003 | Critical | Database | `products` | Stock decreases after successful order | Inventory count reflects order quantity |
+| TC-DB-004 | High | Database | `audit_logs` | Actions are logged | Audit log entry exists |
+
+### Source coverage
+- `tests/e2e/`
+- `sql/order-verification.sql`
+
+---
+
+## 6. Performance Coverage
+
+| Test ID | Priority | Layer | Scope | Scenario | Expected Result |
+|---|---:|---|---|---|---|
+| TC-PERF-001 | Medium | Performance | k6 script | Product endpoint under load | Endpoint remains responsive within expected thresholds |
+
+### Source coverage
+- `performance/k6-load-test.js`
+- `tests/api/test_load_performance.py`
+
+---
+
+## 7. Current Test Coverage Summary
+
+The project currently covers the practical QA flow of the application:
+
+- authentication and access control
+- product list validation
+- order creation and stock enforcement
+- admin route protection
+- UI and e2e regression checks
+- basic database verification
+- performance sanity checks
+
+This is a realistic and maintainable test matrix for a portfolio-focused QA project.
