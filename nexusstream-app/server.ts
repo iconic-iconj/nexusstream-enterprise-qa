@@ -397,6 +397,12 @@ async function startServer(): Promise<void> {
 
   app.post('/api/orders', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
     const { items, totalPrice } = req.body;
+    const computedTotal = (items && Array.isArray(items)) ? items.reduce((acc: number, it: any) => {
+      const price = typeof it.price === 'number' ? it.price : Number(it.price || 0);
+      const qty = typeof it.quantity === 'number' ? it.quantity : Number(it.quantity || 1);
+      return acc + price * qty;
+    }, 0) : 0;
+    const total = typeof totalPrice === 'number' ? totalPrice : computedTotal;
     const userId = req.user?.id;
     const idempotencyKey = (req.headers['idempotency-key'] as string) || null;
 
@@ -430,7 +436,7 @@ async function startServer(): Promise<void> {
       if (usePostgres && pgClient) {
         await pgClient.query('BEGIN');
         try {
-          const r = await pgClient.query('INSERT INTO orders (user_id, total_price) VALUES ($1, $2) RETURNING id', [userId, totalPrice]);
+          const r = await pgClient.query('INSERT INTO orders (user_id, total_price) VALUES ($1, $2) RETURNING id', [userId, total]);
           const orderId = r.rows[0].id;
           for (const item of items) {
             await pgClient.query('INSERT INTO order_items (order_id, product_id, quantity, price) VALUES ($1,$2,$3,$4)', [orderId, item.id, item.quantity, item.price]);
@@ -446,7 +452,7 @@ async function startServer(): Promise<void> {
         }
       } else if (sqliteDb) {
         const executeOrder = sqliteDb.transaction(() => {
-          const orderResult = sqliteDb!.prepare("INSERT INTO orders (user_id, total_price) VALUES (?, ?)").run(userId, totalPrice);
+          const orderResult = sqliteDb!.prepare("INSERT INTO orders (user_id, total_price) VALUES (?, ?)").run(userId, total);
           const orderId = orderResult.lastInsertRowid;
           const insertItem = sqliteDb!.prepare("INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)");
           const updateStock = sqliteDb!.prepare("UPDATE products SET stock = stock - ? WHERE id = ?");

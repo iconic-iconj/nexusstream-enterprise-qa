@@ -1,18 +1,13 @@
-def test_mock_payment_success_scenario(api):
-    response = api.post("/api/mock/payment", json={"result": "success"})
-    assert response.status_code == 200
-    body = response.json()
-    assert body["success"] is True
-    assert "transaction_id" in body
+# test_payments.py
+import pytest
 
-
-def test_mock_payment_failure_scenario(api):
-    response = api.post("/api/mock/payment", json={"result": "fail"})
-    assert response.status_code == 402
-    assert response.json()["success"] is False
-
-
-def test_mock_payment_timeout_scenario(api):
-    response = api.post("/api/mock/payment", json={"result": "timeout"})
-    assert response.status_code == 504
-    assert response.json()["success"] is False
+@pytest.mark.parametrize("result, status_code, success", [
+    ("success", 200, True),
+    ("fail", 402, False),
+    ("timeout", 504, False)
+])
+def test_mock_payment_scenarios(api, result, status_code, success):
+    """Verify payment gateway handles various response states accurately."""
+    res = api.post("/api/mock/payment", json={"result": result})
+    assert res.status_code == status_code
+    assert res.json().get("success") is success

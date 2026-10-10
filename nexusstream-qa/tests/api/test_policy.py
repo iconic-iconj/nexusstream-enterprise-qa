@@ -1,12 +1,11 @@
-def test_policy_endpoint_returns_success(api):
+# test_policy.py
+from schemas.api_schemas import is_success_response
+
+def test_policy_endpoint_returns_valid_structure(api):
+    """Verify policy status returns successfully with expected string schema."""
     response = api.get("/api/policy")
     assert response.status_code == 200
-    assert response.json()["success"] is True
-
-
-def test_policy_endpoint_returns_expected_structure(api):
-    response = api.get("/api/policy")
-    assert response.status_code == 200
-    payload = response.json()
-    assert "policy" in payload
-    assert isinstance(payload["policy"], str)
+    
+    body = response.json()
+    assert is_success_response(body)
+    assert isinstance(body.get("policy"), str)

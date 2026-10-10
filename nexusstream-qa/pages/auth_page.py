@@ -1,24 +1,19 @@
-from playwright.sync_api import Page, expect
-
+# pages/auth_page.py
+from playwright.sync_api import expect
 from .base_page import BasePage
 
-
 class AuthPage(BasePage):
-    def __init__(self, page: Page, base_url: str | None = None):
-        super().__init__(page, base_url)
-
-    def switch_to_register(self):
-        self.page.get_by_test_id("auth-toggle").click()
+    # __init__ removed because it perfectly inherits from BasePage out-of-the-box
 
     def register(self, name: str, email: str, password: str):
-        self.switch_to_register()
-        self.page.get_by_test_id("auth-name-input").fill(name)
-        self.page.get_by_test_id("email-input").fill(email)
-        self.page.get_by_test_id("password-input").fill(password)
-        self.page.get_by_test_id("login-btn").click()
+        self.get_by_test("auth-toggle").click()
+        self.get_by_test("auth-name-input").fill(name)
+        self.get_by_test("email-input").fill(email)
+        self.get_by_test("password-input").fill(password)
+        self.get_by_test("login-btn").click()
         expect(self.page.get_by_text("Acccount created. Please login.")).to_be_visible()
 
     def login(self, email: str, password: str):
-        self.page.get_by_test_id("email-input").fill(email)
-        self.page.get_by_test_id("password-input").fill(password)
-        self.page.get_by_test_id("login-btn").click()
+        self.get_by_test("email-input").fill(email)
+        self.get_by_test("password-input").fill(password)
+        self.get_by_test("login-btn").click()

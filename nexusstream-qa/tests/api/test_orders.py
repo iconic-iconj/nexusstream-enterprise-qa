@@ -1,38 +1,31 @@
+# test_orders.py
 import json
 from pathlib import Path
 
-import pytest
-
-DATA_DIR = Path(__file__).resolve().parents[2] / "test-data"
-
-
-def make_login(api, email="qa.order@example.com", password="Password123!"):
-    api.post("/api/auth/register", json={"name": "Order User", "email": email, "password": password})
-    login = api.post("/api/auth/login", json={"email": email, "password": password})
-    return login.json()["token"]
+# Load test data directly at module level
+PRODUCTS_DATA = json.loads((Path(__file__).resolve().parents[2] / "test-data" / "products.json").read_text())
+VALID_ITEM = PRODUCTS_DATA["valid_order_item"]
+OVERSTOCK_ITEM = PRODUCTS_DATA["invalid_stock_order_item"]
 
 
 def test_create_order_requires_authentication(api):
-    payload = {"items": [{"id": 3, "quantity": 1, "price": 49.99}], "totalPrice": 49.99}
-    response = api.post("/api/orders", json=payload)
-    assert response.status_code in {401, 403}
+    """Verify unauthenticated order placement is blocked."""
+    payload = {"items": [VALID_ITEM], "totalPrice": VALID_ITEM["price"]}
+    assert api.post("/api/orders", json=payload).status_code == 401
 
 
-def test_create_order_with_valid_data(api):
-    email = "qa.order.valid@example.com"
-    token = make_login(api, email=email)
-    payload = {"items": [{"id": 3, "quantity": 1, "price": 49.99}], "totalPrice": 49.99}
-    response = api.post("/api/orders", json=payload, headers={"Authorization": f"Bearer {token}"})
-    assert response.status_code == 200
-    body = response.json()
-    assert body["success"] is True
-    assert "orderId" in body
+def test_order_placement_and_stock_validation(api, user_headers):
+    """Verify standard order creation flow and stock limit boundary checks."""
+    
+    # 1. Test Valid Order
+    valid_payload = {"items": [VALID_ITEM], "totalPrice": VALID_ITEM["price"]}
+    res = api.post("/api/orders", json=valid_payload, headers=user_headers)
+    assert res.status_code == 200
+    assert res.json().get("success") is True
+    assert "orderId" in res.json()
 
-
-def test_create_order_rejects_insufficient_stock(api):
-    email = "qa.order.stock@example.com"
-    token = make_login(api, email=email)
-    payload = {"items": [{"id": 1, "quantity": 999, "price": 2499.99}], "totalPrice": 2499.99}
-    response = api.post("/api/orders", json=payload, headers={"Authorization": f"Bearer {token}"})
-    assert response.status_code == 409
-    assert response.json()["success"] is False
+    # 2. Test Insufficient Stock
+    invalid_payload = {"items": [OVERSTOCK_ITEM], "totalPrice": OVERSTOCK_ITEM["price"]}
+    fail_res = api.post("/api/orders", json=invalid_payload, headers=user_headers)
+    assert fail_res.status_code == 409
+    assert fail_res.json().get("success") is False

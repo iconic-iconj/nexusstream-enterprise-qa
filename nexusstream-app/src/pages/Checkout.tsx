@@ -50,6 +50,7 @@ export const CheckoutPage: React.FC = () => {
     try {
       await axios.post('/api/orders', {
         items,
+        totalPrice: calculateTotal(),
         address,
         payment: {
           name: cardName,
