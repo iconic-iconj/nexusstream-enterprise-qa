@@ -1,4 +1,4 @@
-# test_policy.py
+
 from schemas.api_schemas import is_success_response
 
 def test_policy_endpoint_returns_valid_structure(api):

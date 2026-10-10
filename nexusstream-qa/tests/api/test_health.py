@@ -1,4 +1,4 @@
-# test_health.py
+
 from schemas.api_schemas import is_success_response
 
 def test_health_endpoint_returns_success(api):

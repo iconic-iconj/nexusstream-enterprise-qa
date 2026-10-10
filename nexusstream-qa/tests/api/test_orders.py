@@ -14,18 +14,16 @@ def test_create_order_requires_authentication(api):
     assert api.post("/api/orders", json=payload).status_code == 401
 
 
-def test_order_placement_and_stock_validation(api, user_headers):
+def test_order_placement_and_stock_validation(user_api):
     """Verify standard order creation flow and stock limit boundary checks."""
-    
-    # 1. Test Valid Order
     valid_payload = {"items": [VALID_ITEM], "totalPrice": VALID_ITEM["price"]}
-    res = api.post("/api/orders", json=valid_payload, headers=user_headers)
+    res = user_api.post("/api/orders", json=valid_payload)
     assert res.status_code == 200
     assert res.json().get("success") is True
     assert "orderId" in res.json()
 
-    # 2. Test Insufficient Stock
+    
     invalid_payload = {"items": [OVERSTOCK_ITEM], "totalPrice": OVERSTOCK_ITEM["price"]}
-    fail_res = api.post("/api/orders", json=invalid_payload, headers=user_headers)
+    fail_res = user_api.post("/api/orders", json=invalid_payload)
     assert fail_res.status_code == 409
     assert fail_res.json().get("success") is False
