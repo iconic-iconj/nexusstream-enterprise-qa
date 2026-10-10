@@ -53,7 +53,7 @@ jobs:
       - name: Run smoke suite
         run: |
           mkdir -p reports
-          uv run pytest tests/api -q --maxfail=1 --junitxml=reports/smoke-api-results.xml
+          uv run pytest tests/api -p playwright -q --maxfail=1 --junitxml=reports/smoke-api-results.xml
 
       - name: Upload smoke artifacts
         if: always()
@@ -112,12 +112,12 @@ jobs:
       - name: Run API suite
         run: |
           mkdir -p reports
-          uv run pytest tests/api -q --junitxml=reports/api-results.xml --html=reports/api-report.html --self-contained-html
+          uv run pytest tests/api -p playwright -q --junitxml=reports/api-results.xml --html=reports/api-report.html --self-contained-html
 
       - name: Run UI suite
         run: |
           mkdir -p reports
-          uv run pytest tests/ui -q --junitxml=reports/ui-results.xml --html=reports/ui-report.html --self-contained-html
+          uv run pytest tests/ui -p playwright -q --junitxml=reports/ui-results.xml --html=reports/ui-report.html --self-contained-html
 
       - name: Upload QA artifacts
         if: always()

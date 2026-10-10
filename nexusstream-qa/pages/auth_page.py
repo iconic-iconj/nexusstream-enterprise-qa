@@ -3,7 +3,6 @@ from playwright.sync_api import expect
 from .base_page import BasePage
 
 class AuthPage(BasePage):
-    # __init__ removed because it perfectly inherits from BasePage out-of-the-box
 
     def register(self, name: str, email: str, password: str):
         self.get_by_test("auth-toggle").click()
