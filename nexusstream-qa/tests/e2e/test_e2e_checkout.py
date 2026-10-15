@@ -1,5 +1,6 @@
 import pytest
 from playwright.sync_api import Page, expect
+from typing import Any
 
 pytestmark = [pytest.mark.ui, pytest.mark.e2e]
 

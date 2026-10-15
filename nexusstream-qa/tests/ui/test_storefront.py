@@ -1,11 +1,11 @@
 import pytest
 from playwright.sync_api import Page, expect
+from typing import Any
 
 pytestmark = [pytest.mark.ui, pytest.mark.smoke]
 
 
 def test_homepage_shop_navigation(pom: Any, page: Page) -> None:
-    """Verify that clicking the shop button on the home page correctly opens the marketplace."""
     pom.home.open_home()
     pom.home.open_shop()
 
@@ -42,7 +42,6 @@ def test_storefront_search_finds_existing_product(pom: Any) -> None:
 
 
 def test_user_can_add_product_to_cart(pom: Any, register_and_login: Any) -> None:
-    """Verify that authenticated users can successfully stage an item inside the cart session."""
     register_and_login("Cart Tester")
     pom.store.open_shop()
 
@@ -50,10 +49,6 @@ def test_user_can_add_product_to_cart(pom: Any, register_and_login: Any) -> None
     product_id = pom.store.product_id(card)
 
     pom.store.add_product_to_cart(product_id)
-
-    # Dynamic counter incremental state assertions
     expect(pom.store.by_test_id("cart-count")).to_have_text("1")
-    
-    # Enters the cart review step view context seamlessly
     pom.store.open_cart()
     expect(pom.checkout.by_test_id("checkout-step-1-next")).to_be_visible()
