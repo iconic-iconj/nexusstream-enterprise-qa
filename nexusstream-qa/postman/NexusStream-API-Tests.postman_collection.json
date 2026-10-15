@@ -1,0 +1,781 @@
+{
+  "info": {
+    "name": "NexusStream Enterprise QA \u2014 Weeks 3\u20135",
+    "description": "Postman API checks for TC-001\u2013TC-030. Week 3 API contracts/auth, Week 4 database verification (SQL files), Week 5 API-to-database integration. No Playwright/browser tests are included.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "test_email",
+      "value": "qa.portfolio.user@example.test"
+    },
+    {
+      "key": "test_password",
+      "value": "ChangeMe123!"
+    },
+    {
+      "key": "user_token",
+      "value": ""
+    },
+    {
+      "key": "user_id",
+      "value": ""
+    },
+    {
+      "key": "last_order_id",
+      "value": ""
+    },
+    {
+      "key": "idempotency_key",
+      "value": "nexus-qa-order-001"
+    },
+    {
+      "key": "first_idempotent_order_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 \u2014 Health and Catalog",
+      "item": [
+        {
+          "name": "TC-027 Health contract",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"Health contract\", () => { pm.expect(b.success).to.eql(true); pm.expect(b.status).to.eql(\"operational\"); pm.expect(b.timestamp).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-008/009 Product catalog contract",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"Response contains data array\", () => pm.expect(b.data).to.be.an(\"array\"));",
+                  "pm.test(\"Product fields have expected types\", () => { b.data.forEach(p => { pm.expect(p).to.have.property(\"id\"); pm.expect(p.name).to.be.a(\"string\"); pm.expect(Number(p.price)).to.be.finite; pm.expect(Number(p.stock)).to.be.finite; }); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-009 Filter products by category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products?category=Hardware",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products?category=Hardware"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"All returned products match requested category\", () => { pm.expect(b.data).to.be.an(\"array\"); b.data.forEach(p => pm.expect(p.category).to.eql(\"Hardware\")); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 \u2014 Registration and Login",
+      "item": [
+        {
+          "name": "TC-001 Register valid user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"QA Portfolio User\",\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Registration succeeds\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"Success contract\", () => { pm.expect(b.success).to.eql(true); pm.expect(b.message).to.eql(\"User created\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-002 Reject duplicate email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"QA Portfolio User\",\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Duplicate email is rejected\", () => pm.response.to.have.status(400));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"Error contract is present\", () => { pm.expect(b.success).to.eql(false); pm.expect(b.error).to.eql(\"Email already exists\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-003 Login valid user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Login succeeds\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"Login response contains token and user\", () => { pm.expect(b.success).to.eql(true); pm.expect(b.token).to.be.a(\"string\"); pm.expect(b.user.email).to.eql(pm.environment.get(\"test_email\")); });",
+                  "if (b.token) pm.environment.set(\"user_token\", b.token);",
+                  "if (b.user && b.user.id) pm.environment.set(\"user_id\", String(b.user.id));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-004 Reject invalid password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"WrongPassword123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Invalid credentials are rejected\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"No token is returned\", () => { const b=pm.response.json(); pm.expect(b.success).to.eql(false); pm.expect(b.token).to.be.undefined; });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 \u2014 Authentication and Authorization",
+      "item": [
+        {
+          "name": "TC-005 Reject unauthenticated protected request",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/user",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Request without token is rejected\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-005 Verify authenticated user resource",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{user_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/user",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Authenticated request succeeds\", () => pm.response.to.have.status(200));",
+                  "const b=pm.response.json();",
+                  "pm.test(\"Response identifies current user\", () => pm.expect(b.email || (b.user && b.user.email)).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-006 SECURITY REGRESSION: regular user must not access admin logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{user_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/logs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "logs"
+              ]
+            },
+            "description": "Expected security requirement: 403. The provided route implementation appears to authenticate but not enforce role=admin. This test may fail against current code; preserve the failure as evidence."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Regular user must be denied admin logs\", () => pm.response.to.have.status(403));",
+                  "if (pm.response.code === 200) console.warn(\"POTENTIAL AUTHORIZATION DEFECT: route returned logs to a regular user.\");"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 \u2014 Orders and Idempotency",
+      "item": [
+        {
+          "name": "TC-013 Checkout requires authentication",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"id\": 1,\n      \"quantity\": 1,\n      \"price\": 2499.99\n    }\n  ],\n  \"totalPrice\": 2499.99\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Unauthenticated order is rejected\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-014/028 Create order (valid stock required)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{user_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            },
+            "description": "Seeded SQLite product id=1 is Quantum Blade X1 at 2499.99 with initial stock 50. Verify current test DB before running; use an existing product ID and actual price.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"id\": 1,\n      \"quantity\": 1,\n      \"price\": 2499.99\n    }\n  ],\n  \"totalPrice\": 2499.99\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Order creation returns success\", () => pm.response.to.have.status(200));",
+                  "const b=pm.response.json();",
+                  "pm.test(\"Order ID is returned\", () => { pm.expect(b.success).to.eql(true); pm.expect(b.orderId).to.exist; });",
+                  "if (b.orderId) pm.environment.set(\"last_order_id\", String(b.orderId));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-015 Reject order above stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{user_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"id\": 1,\n      \"quantity\": 999999,\n      \"price\": 2499.99\n    }\n  ],\n  \"totalPrice\": 2499.99\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Insufficient stock is rejected\", () => pm.response.to.have.status(409));",
+                  "const b=pm.response.json();",
+                  "pm.test(\"Error explains stock rejection\", () => { pm.expect(b.success).to.eql(false); pm.expect(b.error).to.eql(\"Insufficient stock\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-030 Repeat order with same Idempotency-Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{user_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            },
+            "description": "Send this request twice without changing idempotency_key. Current API stores the key and returns the previous orderId when replayed.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"id\": 1,\n      \"quantity\": 1,\n      \"price\": 2499.99\n    }\n  ],\n  \"totalPrice\": 2499.99\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Idempotent replay returns successful order response\", () => pm.response.to.have.status(200));",
+                  "const b=pm.response.json();",
+                  "pm.test(\"Order ID is present\", () => { pm.expect(b.success).to.eql(true); pm.expect(b.orderId).to.exist; });",
+                  "const first=pm.environment.get(\"first_idempotent_order_id\");",
+                  "if (first) pm.test(\"Replay returns the original order ID\", () => pm.expect(String(b.orderId)).to.eql(String(first)));",
+                  "else if (b.orderId) pm.environment.set(\"first_idempotent_order_id\", String(b.orderId));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 \u2014 Payment Mock",
+      "item": [
+        {
+          "name": "TC-017 Payment mock success",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mock/payment",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mock",
+                "payment"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"result\": \"success\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Mock payment succeeds\", () => pm.response.to.have.status(200));",
+                  "const b=pm.response.json();",
+                  "pm.test(\"Transaction reference is returned\", () => { pm.expect(b.success).to.eql(true); pm.expect(b.transaction_id).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-017 Payment mock failure",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mock/payment",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mock",
+                "payment"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"result\": \"fail\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Mock payment failure returns 402\", () => pm.response.to.have.status(402));",
+                  "pm.test(\"Failure body is clear\", () => { const b=pm.response.json(); pm.expect(b.success).to.eql(false); pm.expect(b.error).to.eql(\"Payment failed\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-018 Payment timeout (15 seconds)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mock/payment",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mock",
+                "payment"
+              ]
+            },
+            "description": "This endpoint deliberately waits 15 seconds. Set Postman request timeout above 15000 ms, otherwise the client may time out before the server responds.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"result\": \"timeout\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Mock timeout returns 504\", () => pm.response.to.have.status(504));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

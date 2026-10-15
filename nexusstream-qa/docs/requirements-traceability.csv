@@ -1,0 +1,21 @@
+requirement_id,requirement,priority,verification_method,scenario_ids,test_case_ids,notes
+REQ-01,User can register with valid required details,High,API and UI,AUTH-01,TC-001;TC-019;TC-020,Confirm required fields and validation rules against the actual contract
+REQ-02,Duplicate email cannot create a second account,High,API and database,AUTH-02,TC-002,Registration must not create a duplicate user
+REQ-03,Valid credentials establish an authenticated session,High,API and UI,AUTH-03;AUTH-05,TC-003,Verify token/session behavior against the implemented contract
+REQ-04,Invalid credentials do not authenticate a user,High,API,AUTH-04,TC-004,Verify response and absence of an authenticated session
+REQ-05,Protected resources reject requests without valid authentication,Critical,API,AUTH-06;SEC-01,TC-005;TC-013,Check protected profile and order routes independently
+REQ-06,Product listing returns valid product information,High,API and UI,SHOP-01;SHOP-02,TC-008;TC-009,Required fields and types must match the current contract
+REQ-07,Product filtering returns intended results when implemented,Medium,API and UI,SHOP-03,TC-009,Mark not applicable only when filtering is not implemented
+REQ-08,Cart quantities and totals follow documented pricing rules,High,UI and API where applicable,CART-01;CART-02;CART-03,TC-010;TC-011;TC-012,Do not assume selectors or quantity behavior without checking the DOM
+REQ-09,Checkout requires an authenticated user,Critical,API and UI,ORDER-01,TC-013,Server-side enforcement is required even if the UI redirects
+REQ-10,Valid orders persist with consistent order and item data,Critical,API and database,ORDER-02;DB-01;DB-02,TC-014;TC-028,Include order total reconciliation
+REQ-11,Orders cannot exceed available stock and inventory changes remain consistent,Critical,API and database,ORDER-03;DB-03;DB-04,TC-015;TC-016;TC-029,Also investigate concurrent stock changes where supported
+REQ-12,Payment failure and timeout leave order/payment state consistent,High,API and integration,PAY-01,TC-017;TC-018,Confirm actual mock-payment contract
+REQ-13,Only authorized administrators can access administrative logs,Critical,API authorization,SEC-02;SEC-03;SEC-04,TC-006;TC-007,DEF-001 is linked to this requirement
+REQ-14,Required audit events are recorded without unauthorized disclosure,High,API and database,SEC-04;DB-05,TC-021,Verify audit requirements before asserting exact events
+REQ-15,Health endpoint reports status according to its contract,High,API smoke,OPS-01,TC-027,Confirm expected fields and readiness meaning
+REQ-16,AI outputs satisfy defined correctness grounding and safety requirements when AI feature exists,High when implemented,AI evaluation,AI-01;AI-02;AI-03;AI-04;AI-05;AI-06;AI-07,TC-022;TC-023;TC-024;TC-025;TC-026,Conditional: do not claim execution if the feature is unavailable
+REQ-17,Registration rejects malformed email addresses,High,API and UI,AUTH-07,TC-019,DEF-003 is linked to this requirement; REQ-02 remains specifically about duplicate accounts
+REQ-18,Order creation requires authentication at the API boundary,Critical,API security,ORDER-01;SEC-01,TC-013,DEF-002 is linked to this requirement
+REQ-19,Repeated order submission follows documented idempotency rules,High where supported,API and database,ORDER-05;DB-06,TC-030,Do not assume idempotency exists unless confirmed by the API contract
+REQ-20,Stored order total agrees with trusted item prices and documented pricing rules,Critical,API and database,DB-02;ORDER-02,TC-014;TC-028;INT-06,Client-supplied total-price tampering remains an investigation until reproduced

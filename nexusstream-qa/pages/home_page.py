@@ -1,14 +1,13 @@
-# pages/home_page.py
+
 from .base_page import BasePage
 
+
 class HomePage(BasePage):
-
-    def open_home(self):
+    def open_home(self) -> None:
         self.open("/")
-        self.page.wait_for_load_state("domcontentloaded")
 
-    def open_shop(self):
-        self.get_by_test("hero-shop-button").click()
+    def open_shop(self) -> None:
+        self.by_test_id("hero-shop-button").click()
 
-    def open_login(self):
-        self.get_by_test("hero-login-button").click()
+    def open_login(self) -> None:
+        self.by_test_id("hero-login-button").click()

@@ -1,21 +1,16 @@
+from __future__ import annotations
+
 import os
-from playwright.sync_api import Page
+from playwright.sync_api import Locator, Page
 
 
 class BasePage:
-    def __init__(self, page: Page, base_url: str | None = None):
+    def __init__(self, page: Page, base_url: str | None = None) -> None:
         self.page = page
-        self.base_url = base_url or os.getenv("BASE_URL", "http://localhost:3000")
+        self.base_url = (base_url or os.getenv("BASE_URL", "http://localhost:3000")).rstrip("/")
 
-    def open(self, path: str = "/"):
-        self.page.goto(f"{self.base_url.rstrip('/')}{path}")
+    def open(self, path: str = "/") -> None:
+        self.page.goto(f"{self.base_url}/{path.lstrip('/')}")
 
-    def wait_for_url(self, path: str, timeout: int = 10000):
-        self.page.wait_for_url(f"**{path}", timeout=timeout)
-
-    def get_by_test(self, name: str):
-        """Return a locator matching either data-testid or data-test attributes.
-        Many app components use `data-test` while others use `data-testid`.
-        This helper normalizes test locators for the page objects.
-        """
+    def by_test_id(self, name: str) -> Locator:
         return self.page.locator(f'[data-testid="{name}"], [data-test="{name}"]')

@@ -1,0 +1,20 @@
+{
+  "users": {
+    "valid_password": "Password123!",
+    "invalid_emails": ["not-an-email", "missing-at.example.com", ""],
+    "missing_password": {"name": "Missing Password", "password": ""}
+  },
+  "valid_product": {
+    "name": "API Automation Test Product",
+    "description": "Disposable product created by the API test suite",
+    "price": 19.99,
+    "category": "qa-automation",
+    "stock": 5,
+    "image_url": ""
+  },
+  "invalid_products": [
+    {"name": "Negative price", "payload": {"name": "Invalid Negative Price", "price": -1, "category": "qa-automation", "stock": 1}},
+    {"name": "String price", "payload": {"name": "Invalid String Price", "price": "19.99", "category": "qa-automation", "stock": 1}},
+    {"name": "Missing price", "payload": {"name": "Invalid Missing Price", "category": "qa-automation", "stock": 1}}
+  ]
+}

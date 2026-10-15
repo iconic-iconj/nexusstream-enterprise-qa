@@ -78,8 +78,8 @@ export default function Shop() {
           <div className="flex flex-wrap gap-4 items-center">
             <Link
               to="/checkout"
-              className="relative flex items-center justify-center w-11 h-11 border border-gray-300 dark:border-white/10 rounded-lg bg-white dark:bg-[#0a0a0a] hover:border-blue-500 transition-all shadow-sm"
               data-testid="cart-button"
+              className="relative flex items-center justify-center w-11 h-11 border border-gray-300 dark:border-white/10 rounded-lg bg-white dark:bg-[#0a0a0a] hover:border-blue-500 transition-all shadow-sm"
             >
               <ShoppingCart size={18} className="text-gray-700 dark:text-gray-200" />
               <span
